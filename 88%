@@ -1,0 +1,59 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
+import matplotlib.pyplot as plt
+
+# 1. Загрузка данных и подготовка
+file_path = 'Maxima_Results__403-3670.csv'
+lottery_data = pd.read_csv(file_path, encoding='ISO-8859-1', delimiter=';')
+
+# Переименование столбцов для удобства
+lottery_data.columns = [
+    'Тираж', 'Дата', 'Лототрон', 'Комплект_шаров', 'Шар1', 'Шар2', 'Шар3', 'Шар4', 'Шар5',
+    'Победители_5из5', 'Приз_5из5', 'Победители_4из5', 'Приз_4из5', 'Победители_3из5', 'Приз_3из5', 
+    'Победители_2из5', 'Приз_2из5', 'Неиспользуемый'
+]
+lottery_data = lottery_data.drop(columns=['Неиспользуемый'])
+lottery_data['Дата'] = pd.to_datetime(lottery_data['Дата'], errors='coerce')
+lottery_data = lottery_data.dropna()
+
+# 2. Создание признаков и целевой переменной
+# Для прогноза будем использовать предыдущие шары для предсказания следующего номера шара 1
+признаки = lottery_data[['Шар1', 'Шар2', 'Шар3', 'Шар4', 'Шар5']]
+целевая_переменная = lottery_data['Шар1']
+
+# Разделение данных на обучающую и тестовую выборки
+X_train, X_test, y_train, y_test = train_test_split(признаки, целевая_переменная, test_size=0.2, random_state=42)
+
+# 3. Обучение модели
+модель = RandomForestClassifier(n_estimators=100, random_state=42)
+модель.fit(X_train, y_train)
+
+# 4. Предсказание и оценка модели
+y_pred = модель.predict(X_test)
+
+# Вывод истинных и предсказанных значений
+результаты = pd.DataFrame({'Истинное значение': y_test, 'Предсказанное значение': y_pred})
+print("Результаты предсказания:")
+print(результаты.head(10))  # Показывает первые 10 предсказаний для сравнения
+
+# Оценка точности
+точность = accuracy_score(y_test, y_pred)
+print(f"\nТочность модели: {точность * 100:.2f}%")
+print("\nОтчет классификации:\n", classification_report(y_test, y_pred))
+
+# 5. Визуализация предсказаний
+plt.figure(figsize=(12, 6))
+plt.plot(результаты['Истинное значение'].values, label='Истинное значение', marker='o')
+plt.plot(результаты['Предсказанное значение'].values, label='Предсказанное значение', marker='x')
+plt.title('Сравнение истинных и предсказанных значений')
+plt.xlabel('Наблюдение')
+plt.ylabel('Значение шара 1')
+plt.legend()
+plt.show()
+
+# 6. Предсказание нового числа на основе последних данных
+последние_данные = признаки.iloc[-1].values.reshape(1, -1)
+предсказанный_шар1 = модель.predict(последние_данные)
+print(f"\nПрогнозируемое следующее число для шара 1: {предсказанный_шар1[0]}")
